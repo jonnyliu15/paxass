@@ -2,7 +2,10 @@ using namespace std;
 
 #include <iostream>
 #include <vector>
+#include <unordered_set>
+#include <sstream>
 
+#include "utils.cpp";
 #include "node.h";
 #include "globals.h";
 
@@ -12,38 +15,37 @@ class RunPaxos {
         RunPaxos(int n_nodes) {
             cout << "Initializing Paxos nodes" << endl;
             for (int i = 0; i < n_nodes; i++) {
-                pid_t pid = fork();
-                if (pid == 0) {
-                    struct sigaction sa;
-                    sa.sa_handler = node_sigterm_handler;
-                    sa.sa_flags = 0;
-                    sigemptyset(&sa.sa_mask);
-                    if (sigaction(SIGTERM, &sa, nullptr) == -1) {
-                        perror("sigaction");
-                        exit(1);
-                    }
-                    PaxosNode node(i); 
-                    exit(0);
-                } else if (pid > 0) {
-                    processes.push_back(pid);
-                } else {
-                    cerr << "Fork failed for node " << i << endl;
-                    exit(1);
-                }
+               PaxosNode * node = new PaxosNode(i + 1); 
+               nodes.push_back(node);
             }
         }
 
         ~RunPaxos() {
-            for(int i = 0; i < processes.size(); i++) {
-                cout << "Sending SIGTERM to process " << processes[i] << endl;
-                kill(processes[i], SIGTERM);
-            }
-            for (pid_t pid : processes) {
-                waitpid(pid, nullptr, 0);
+            for (int i = 0; i < nodes.size(); i++) {
+                delete nodes[i];
             }
         }
 
-    vector<pid_t> processes;
+        void runCommand(vector<string> & parameters) {
+            try {
+                if (parameters[0] == "sayHi") {
+                    if (parameters.size() > 3) {
+                        throw runtime_error("Too many arguments for command: " + parameters[0]);
+                    }
+                    sayHi(stoi(parameters[1]), stoi(parameters[2]));
+                    return;
+                }
+                throw runtime_error("Invalid command: " + parameters[0]);
+            }
+            catch (exception &e) {
+                cout << e.what() << endl;
+            }
+        }
+    private:
+        void sayHi(int source, int destination) {
+                nodes[source]->sayHi(nodes[destination]);
+            }
+        vector<PaxosNode *> nodes;
 };
 
 int main() {
@@ -51,10 +53,21 @@ int main() {
     cout << "Enter the number of nodes: ";
     cin >> n_nodes;
     cout << "Number of nodes: " << n_nodes << endl;
+    cin.ignore();
     RunPaxos paxos(n_nodes);
     signal(SIGINT, sigterm_handler);
     while (!sigterm_received) {
-        sleep(1);
+        cout << "Enter a command: ";
+        string commandString;
+        getline(cin, commandString);
+        stringstream stream (commandString);
+        string token;
+        vector<string> tokens;
+        while (getline(stream, token, ' ')) {
+            tokens.push_back(token);
+        }
+        paxos.runCommand(tokens);
+
     }
     return 0;
 }

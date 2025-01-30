@@ -19,13 +19,19 @@ class PaxosNode {
 
         ~PaxosNode();
 
+        void sayHi(PaxosNode * destination);
+
     private:
         int id;
         int receiver_socket_fd;
+        int send_socket_fd;
         int last_vote;
         std::thread * listener;
+        
 
         void listen();
+
+        void send(char * msg, int size, PaxosNode * destination);
 
 };
 
