@@ -1,38 +1,36 @@
 #ifndef NODE_H
 #define NODE_H
 
-#include <sys/types.h>
-#include <unistd.h>
-#include <iostream>
-#include <signal.h>
-#include <sys/socket.h>
-#include <thread>
-#include <netinet/in.h>
-#include <netdb.h>
-#include <functional>
-#include <filesystem>
 #include "globals.h"
+#include "messaging/socket_messaging.cpp"
+#include <functional>
+#include <iostream>
+#include <thread>
 
 class PaxosNode {
-    public:
-        PaxosNode(int id);
+  public:
+    PaxosNode(int id, NodeMessaging *messaging);
 
-        ~PaxosNode();
+    ~PaxosNode();
 
-        void sayHi(PaxosNode * destination);
+    int write(const char *data);
 
-    private:
-        int id;
-        int receiver_socket_fd;
-        int send_socket_fd;
-        int last_vote;
-        std::thread * listener;
-        
+    char *read(int index);
 
-        void listen();
+    void say_hi(int destination_id);
 
-        void send(char * msg, int size, PaxosNode * destination);
+  private:
+    int id;
+    int last_vote;
+    FILE *my_memory;
+    NodeMessaging *messaging;
+    std::thread *listener;
 
+    static void handle_message(char *msg);
+
+    void initiate_vote(char *data);
+
+    void vote();
 };
 
 #endif
